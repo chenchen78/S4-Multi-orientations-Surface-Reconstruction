@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<executable>
+  <category>Surface Models</category>
+  <title>Surface Reconstruction</title>
+  <description><![CDATA[Surface reconstruction from point sets files ]]></description>
+  <version>$Revision$</version>
+  <documentation-url>http://www.slicer.org/slicerWiki/index.php/Documentation/4.2/Modules/SurfaceReconstruction</documentation-url>
+  <license>Slicer</license>
+  <contributor>David Doria, ArnaudGelas, Julien Jomier (Kitware), Stephen Aylward (Kitware), Jean-Christophe Fillion-Robin (Kitware)</contributor>
+  <acknowledgements>This work was partially funded by NIH grant 3P41RR013218-12S1</acknowledgements>
+  <parameters>
+    <label>IO</label>
+    <description><![CDATA[Input/output parameters]]></description>
+  
+   <image>
+      <name>InputVolumeAxial</name>
+      <label>Input Axial Volume</label>
+      <channel>input</channel>
+      <description><![CDATA[Input volume]]></description>
+	  <longflag>inputAxial</longflag>
+    </image>
+	
+	 <image>
+      <name>InputVolumeSag</name>
+      <label>Input Sagittal Volume</label>
+      <channel>input</channel>
+      <description><![CDATA[Input volume]]></description>
+	  <longflag>inputSagittal</longflag>
+    </image>
+	
+	<image>
+      <name>InputVolumeCor</name>
+      <label>Input Coronal Volume</label>
+      <channel>input</channel>
+      <description><![CDATA[Input volume]]></description>
+	  <longflag>inputCoronal</longflag>
+    </image>
+	
+	
+	<geometry>
+      <name>outputPolyFile</name>
+      <label>Output Polydata</label>
+      <channel>output</channel>
+      <description><![CDATA[Output Polydata]]></description>
+	  <longflag>outputPoly</longflag>
+    </geometry>
+    
+    <geometry>
+      <name>outputSurfaceFile</name>
+      <label>Output Surface</label>
+      <channel>output</channel>
+	  <longflag>outputSurface</longflag>
+      <description><![CDATA[Output Surface]]></description>
+    </geometry>
+
+ 
+
+</parameters>
+        
+  
+    
+</executable>
