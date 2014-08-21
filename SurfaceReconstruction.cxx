@@ -493,7 +493,7 @@ MidImageType::Pointer getMask (const MidImageType::Pointer midImage, int labelVa
 				indexMid[2]=n;
 				pixelvalue=clonedImage->GetPixel(indexMid);
 
-				if (pixelvalue == unsigned char (labelValue))
+				if (pixelvalue == labelValue)
 					clonedImage->SetPixel(indexMid, 255);
 				else
 					clonedImage->SetPixel(indexMid, 0);

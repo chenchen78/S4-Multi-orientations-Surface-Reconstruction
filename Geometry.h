@@ -31,6 +31,7 @@ DAMAGE.
 #include <cmath>
 #include <vector>
 #include "Hash.h"
+#include <stdlib.h>
 
 template<class Real>
 Real Random(void);
