@@ -12,19 +12,19 @@
     <label>IO</label>
     <description><![CDATA[Input/output parameters]]></description>
   
-   <image>
+	<image>
       <name>InputVolumeAxial</name>
       <label>Input Axial Volume</label>
       <channel>input</channel>
-      <description><![CDATA[Input volume]]></description>
+      <description><![CDATA[Input Axial volume]]></description>
 	  <longflag>inputAxial</longflag>
     </image>
 	
-	 <image>
+	<image>
       <name>InputVolumeSag</name>
       <label>Input Sagittal Volume</label>
       <channel>input</channel>
-      <description><![CDATA[Input volume]]></description>
+      <description><![CDATA[Input Sagittal volume]]></description>
 	  <longflag>inputSagittal</longflag>
     </image>
 	
@@ -32,30 +32,55 @@
       <name>InputVolumeCor</name>
       <label>Input Coronal Volume</label>
       <channel>input</channel>
-      <description><![CDATA[Input volume]]></description>
+      <description><![CDATA[Input Coronal volume]]></description>
 	  <longflag>inputCoronal</longflag>
     </image>
 	
+  
 	
-	<geometry>
+	<table hidden="true" type="color" reference="InputVolumeAxial">
+      <name>ColorTable</name>
+      <channel>input</channel>
+      <longflag>color</longflag>
+      <description><![CDATA[Color table to make labels to colors and objects]]></description>
+    </table>
+	
+	<geometry aggregate="true" fileExtensions=".mrml" multiple="true">
+      <name>ModelSceneFile</name>
+      <channel>output</channel>
+      <label>Models</label>
+      <longflag>modelSceneFile</longflag>
+      <description><![CDATA[Generated models, under a model hierarchy node. Models are imported into Slicer under a model hierarchy node, and their colors are set by the color table associated with the input label map volume. The model hierarchy node must be created before running the model maker, by selecting Create New ModelHierarchy from the Models drop down menu. If you're running from the command line, a model hierarchy node in a new mrml scene will be created for you.]]></description>
+      <default>models.mrml</default>
+    </geometry>
+   
+    <geometry>
       <name>outputPolyFile</name>
       <label>Output Polydata</label>
       <channel>output</channel>
+      <longflag>Polydata</longflag>
       <description><![CDATA[Output Polydata]]></description>
-	  <longflag>outputPoly</longflag>
-    </geometry>
-    
-    <geometry>
-      <name>outputSurfaceFile</name>
-      <label>Output Surface</label>
-      <channel>output</channel>
-	  <longflag>outputSurface</longflag>
-      <description><![CDATA[Output Surface]]></description>
-    </geometry>
+     </geometry>
+   
+   
+   </parameters>
 
- 
-
-</parameters>
+   <parameters>
+    <label>Surface Reconstruction Parameters</label>
+    <description>Parameters used for Surface Reconstruction.</description>
+    <integer>
+      <name>depth</name>
+      <label>Depth</label>
+      <longflag>depth</longflag>
+      <description>the Maximum depth of the tree</description>
+      <default>12</default>
+      <constraints>
+        <minimum>4</minimum>
+        <maximum>20</maximum>
+       </constraints>
+    </integer>
+	</parameters>
+	
         
   
     

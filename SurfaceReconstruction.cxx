@@ -19,6 +19,16 @@
 #include "itkImageToVTKImageFilter.h" 
 
 
+// MRML includes
+#include "vtkMRMLColorTableNode.h"
+#include "vtkMRMLColorTableStorageNode.h"
+#include "vtkMRMLModelDisplayNode.h"
+#include "vtkMRMLModelHierarchyNode.h"
+#include "vtkMRMLModelNode.h"
+#include "vtkMRMLModelStorageNode.h"
+#include "vtkMRMLScene.h"
+
+
 // vtkITK includes
 #include "vtkITKArchetypeImageSeriesScalarReader.h"
 
@@ -60,11 +70,13 @@
 #include <vtkAppendFilter.h>
 #include <vtkUnstructuredGrid.h>
 #include <vtkBooleanOperationPolyDataFilter.h>
+#include <vtkLookupTable.h>
 
 
 #include <iostream>
 
-
+// VTKsys includes
+#include <vtksys/SystemTools.hxx>
 
 
 
@@ -153,13 +165,6 @@ vtkSmartPointer<vtkPoints>  getVolumeContourPoints (const MidImageType::Pointer 
 	}
 
 	inputSize[2]=zSize;
-	
-	//debug
-	//typedef itk::ImageFileWriter<MidImageType> WriterType3D;
-	//WriterType3D::Pointer writeroutconture = WriterType3D::New();
-	//writeroutconture->SetFileName("D:\\outputcontour.nrrd");
-	//writeroutconture->SetInput(outputContour);
-	//writeroutconture->Update();
 	
 	
 	//Get points at boundary  	
@@ -559,11 +564,6 @@ void combinePoints (vtkSmartPointer<vtkPolyData> pointsetA, vtkSmartPointer<vtkP
 	std::cout << "There are now "
 		<< pointsetA->GetNumberOfPoints() << " points. inside function" << std::endl;
 
-
-
-	
-	mergePoints = NULL;
-
 }
 vtkSmartPointer<vtkPolyData> combinePolys (vtkSmartPointer<vtkPolyData> polyA, vtkSmartPointer<vtkPolyData> polyB)
 {
@@ -615,7 +615,7 @@ int DoIt( int argc, char * argv[], T )
 	vtkSmartPointer<vtkPolyData> surfacePre = vtkSmartPointer<vtkPolyData>::New();
 
 	//
-	std::string Name="Surface";
+	std::string Name;
 	std::vector<int> madeModels; //The labels for surface reconstruction
 	std::vector< MidImageType::Pointer > midImage_V;
 	std::vector<std::string> inputFileName;
@@ -627,17 +627,132 @@ int DoIt( int argc, char * argv[], T )
 	//
 	if (InputVolumeAxial.size())
 	{
-     inputFileName.push_back(InputVolumeAxial.c_str());
-    }
+		inputFileName.push_back(InputVolumeAxial.c_str());
+	}
 	if (InputVolumeSag.size())
 	{
-    inputFileName.push_back(InputVolumeSag.c_str());
+		inputFileName.push_back(InputVolumeSag.c_str());
     }
 	if (InputVolumeCor.size())
 	{
-    inputFileName.push_back(InputVolumeCor.c_str());
+		inputFileName.push_back(InputVolumeCor.c_str());
     }
 	
+
+
+	// get the model hierarchy id from the scene file
+	std::string::size_type loc;
+	std::string            sceneFilename;
+	std::string            modelHierarchyID;
+	 
+	 
+	if (ModelSceneFile.size() == 0)
+    {
+		std::cerr << "********\nERROR: no model scene defined!  "  << endl;
+		return  EXIT_FAILURE;
+	}
+	else
+    {
+		loc = ModelSceneFile[0].find_last_of("#");
+		if (loc != std::string::npos)
+		{
+			sceneFilename = std::string(ModelSceneFile[0].begin(),
+                                  ModelSceneFile[0].begin() + loc);
+			loc++;
+
+			modelHierarchyID = std::string(ModelSceneFile[0].begin() + loc, ModelSceneFile[0].end());
+			std::cout << "modelHierarchyID = std::string ... \n "
+              << std::endl;
+		
+		}
+		else
+		{
+			//the passed in file is missing a model hierarchy node, work around it
+			sceneFilename = ModelSceneFile[0];
+			std::cout << "sceneFilename = ModelSceneFile[0] \n "
+              << std::endl;
+		}
+    } 
+	
+	// get the directory of the scene file
+	std::string rootDir
+    = vtksys::SystemTools::GetParentDirectory(sceneFilename.c_str());
+	 
+	 
+    vtkNew<vtkMRMLScene> modelScene;  
+	
+	// load the scene that Slicer will re-read
+	modelScene->SetURL(sceneFilename.c_str());
+  
+	// only try importing if the scene file exists
+	if (vtksys::SystemTools::FileExists(sceneFilename.c_str()))
+    {
+		modelScene->Import();
+	}
+	else
+	{
+		std::cerr << "Model scene file doesn't exist yet: " <<  sceneFilename.c_str() << std::endl;
+	}
+  
+  // make sure we have a model hierarchy node
+	vtkMRMLNode *                              rnd = modelScene->GetNodeByID(modelHierarchyID);
+	vtkSmartPointer<vtkMRMLModelHierarchyNode> rtnd;
+  
+	if (!rnd)
+	{
+		std::cerr << "Error: no model hierarchy node at ID \""
+			<< modelHierarchyID << "\", creating one" << std::endl;
+		rtnd = vtkSmartPointer<vtkMRMLModelHierarchyNode>::New();
+		rtnd->SetHideFromEditors(0);
+		modelScene->AddNode(rtnd);
+		//now get it again as a mrml node so can add things under it
+		rnd =  modelScene->GetNodeByID(rtnd->GetID());
+	}
+	else
+	{
+
+		std::cout << "Got model hierarchy node " << rnd->GetID() << std::endl;
+		rtnd = vtkMRMLModelHierarchyNode::SafeDownCast(rnd);
+	}
+	
+
+	vtkSmartPointer<vtkMRMLColorTableNode>        colorNode;
+	vtkSmartPointer<vtkMRMLColorTableStorageNode> colorStorageNode;
+
+	int useColorNode = 0;
+	if (ColorTable.find("Grey") !=  std::string::npos)
+    {
+		useColorNode = 0;
+    }
+	else
+		useColorNode=1;
+
+	if (useColorNode)
+    {
+		colorNode = vtkSmartPointer<vtkMRMLColorTableNode>::New();
+		modelScene->AddNode(colorNode);
+
+		// read the colour file
+		colorStorageNode = vtkSmartPointer<vtkMRMLColorTableStorageNode>::New();
+		colorStorageNode->SetFileName(ColorTable.c_str());
+		modelScene->AddNode(colorStorageNode);
+
+
+		colorNode->SetAndObserveStorageNodeID(colorStorageNode->GetID());
+		if (!colorStorageNode->ReadData(colorNode))
+		{
+			std::cerr << "Error reading colour file " << colorStorageNode->GetFileName() << endl;
+			return EXIT_FAILURE;
+		}
+		colorStorageNode = NULL;
+	}
+
+
+	// each hierarchy node needs a display node
+	vtkNew<vtkMRMLModelDisplayNode> dnd;
+	dnd->SetVisibility(1);
+	modelScene->AddNode(dnd.GetPointer());
+	rtnd->SetAndObserveDisplayNodeID(dnd->GetID());
 
 	//Read input volumes and get labels
 	for(::size_t l=0; l <inputFileName.size(); l++)
@@ -717,6 +832,12 @@ int DoIt( int argc, char * argv[], T )
 		std::stringstream lable;
 		lable<<labelValue;
 
+		//if (colorNode != NULL)
+  //      {
+		//	std::string colorName = std::string(colorNode->GetColorNameAsFileName(m));
+		//}
+		
+		
 		for(::size_t l=0; l <inputFileName.size(); l++)
 		{
 
@@ -855,48 +976,108 @@ int DoIt( int argc, char * argv[], T )
 		//PoissonReconstruction
 		vtkSmartPointer<vtkPoissonReconstruction> poissonFilter = 
 		vtkSmartPointer<vtkPoissonReconstruction>::New();
-		poissonFilter->SetDepth(12);
+		poissonFilter->SetDepth(depth);
 		poissonFilter->SetInputConnection(readerPoly->GetOutputPort());
 		poissonFilter->Update();
   
   
   
-		////Write the file
-		//std::string fileName;
+		//Write the file
+		std::string fileName;
 		//fileName = "f:" + std::string("/") + Name + lable.str()+ std::string(".vtp");
-		//vtkSmartPointer<vtkXMLPolyDataWriter> writerSurface =
-		//vtkSmartPointer<vtkXMLPolyDataWriter>::New();
-		//writerSurface->SetInputConnection(poissonFilter->GetOutputPort());
-		//writerSurface->SetFileName(fileName.c_str());
-		//writerSurface->Update();
+		Name=std::string("Surface")+lable.str();
+		fileName=rootDir  + std::string("/") +Name + std::string(".vtp");
+		vtkSmartPointer<vtkXMLPolyDataWriter> writerSurface =
+		vtkSmartPointer<vtkXMLPolyDataWriter>::New();
+		writerSurface->SetInputConnection(poissonFilter->GetOutputPort());
+		writerSurface->SetFileName(fileName.c_str());
+		writerSurface->Update();
 
 		
-		if (m==0)
-		{
-		surfacePre->ShallowCopy(poissonFilter->GetOutput());
-		}
-		else
-		{
+		//if (m==0)
+		//{
+		//surfacePre->ShallowCopy(poissonFilter->GetOutput());
+		//}
+		//else
+		//{
 
-		vtkSmartPointer<vtkBooleanOperationPolyDataFilter> booleanOperation =
-		vtkSmartPointer<vtkBooleanOperationPolyDataFilter>::New();	
-		booleanOperation->SetInputConnection( 0, surfacePre->GetProducerPort() );
-		booleanOperation->SetInputConnection( 1, poissonFilter->GetOutputPort() );
-		booleanOperation->SetOperationToUnion();
-		booleanOperation->Update();
-		surfacePre->ShallowCopy(booleanOperation->GetOutput());
+		//vtkSmartPointer<vtkBooleanOperationPolyDataFilter> booleanOperation =
+		//vtkSmartPointer<vtkBooleanOperationPolyDataFilter>::New();	
+		//booleanOperation->SetInputConnection( 0, surfacePre->GetProducerPort() );
+		//booleanOperation->SetInputConnection( 1, poissonFilter->GetOutputPort() );
+		//booleanOperation->SetOperationToUnion();
+		//booleanOperation->Update();
+		//surfacePre->ShallowCopy(booleanOperation->GetOutput());
 
+		//}
+		//
+	
+		// each model needs a mrml node, a storage node and a display node
+        vtkNew<vtkMRMLModelNode> mnode;
+        mnode->SetScene(modelScene.GetPointer());
+        mnode->SetName(Name.c_str());
+
+        vtkNew<vtkMRMLModelStorageNode> snode;
+        snode->SetFileName(fileName.c_str());
+        if (modelScene->AddNode(snode.GetPointer()) == NULL)
+        {
+          std::cerr << "ERROR: unable to add the storage node to the model scene" << endl;
+        }
+        
+		vtkNew<vtkMRMLModelDisplayNode> dnode;
+        dnode->SetColor(0.5, 0.5, 0.5);
+        double *rgba;
+		if (colorNode != NULL)
+        {
+          rgba = colorNode->GetLookupTable()->GetTableValue(labelValue);
+          if (rgba != NULL)
+          {
+            dnode->SetColor(rgba[0], rgba[1], rgba[2]);
+          }
+          else
+          {
+            std::cerr << "Couldn't get look up table value for " << m << ", display node colour is not set (grey)"
+                      << endl;
+           }
+         }
+		
+		dnode->SetVisibility(1);
+        modelScene->AddNode(dnode.GetPointer());
+		mnode->SetAndObserveStorageNodeID(snode->GetID());
+        mnode->SetAndObserveDisplayNodeID(dnode->GetID());
+        modelScene->AddNode(mnode.GetPointer());
+        std::string colorName;
+		if (colorNode != NULL)
+        {
+          colorName = std::string(colorNode->GetColorNameAsFileName(labelValue));
+        }
+        else
+		{
+			std::stringstream ss;
+			ss << labelValue;
+			colorName = ss.str();
 		}
 		
+		vtkMRMLNode *mrmlNode = NULL;
+		if (colorName.compare("") != 0)
+        {
+			mrmlNode = modelScene->GetFirstNodeByName(colorName.c_str());
+        }
+
+		vtkNew<vtkMRMLModelHierarchyNode> mhnd;
+        mhnd->SetHideFromEditors(1);
+        modelScene->AddNode(mhnd.GetPointer());
+        mhnd->SetParentNodeID(rnd->GetID());
+        mhnd->SetModelNodeID(mnode->GetID());
+
 	}
 	
 	
-	vtkSmartPointer<vtkXMLPolyDataWriter> writerSurface =
-	vtkSmartPointer<vtkXMLPolyDataWriter>::New();
-	writerSurface->SetInput(surfacePre);
-	writerSurface->SetFileName(outputSurfaceFile.c_str());
-	writerSurface->Update();
-	
+
+    // write to disk
+    modelScene->Commit();
+    std::cout << "Models saved to scene file " << sceneFilename.c_str() << "\n";
+
 
 	return EXIT_SUCCESS;
 }
